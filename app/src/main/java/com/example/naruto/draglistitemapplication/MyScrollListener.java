@@ -1,5 +1,6 @@
 package com.example.naruto.draglistitemapplication;
 
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -23,10 +24,20 @@ public class MyScrollListener implements View.OnTouchListener {
     private float offsetX;//当前ACTION_MOVE事件的偏移量
     private HideStateChangeListener hideStateChangeListener;//监听隐藏视图状态
     private OnInterceptActionDownListener onInterceptActionDownListener;//判断是否拦截ActionDown事件
+    private OnActionFinishListener onActionFinishListener;//事件结束的回调，可当做是对外提供点击事件接口
+    private static final String TAG = "MyScrollListener";
 
+    public MyScrollListener(View aimView) {
+        this.aimView = aimView;
+        maxOffset = 0;
+    }
 
     public MyScrollListener(View aimView, int maxOffset) {
         this.aimView = aimView;
+        this.maxOffset = maxOffset;
+    }
+
+    public void setMaxOffset(int maxOffset) {
         this.maxOffset = maxOffset;
     }
 
@@ -39,18 +50,27 @@ public class MyScrollListener implements View.OnTouchListener {
                 if (onInterceptActionDownListener != null) {
                     if (onInterceptActionDownListener.onActionDown()) {
                         b = true;
+                        Log.d(TAG, "onTouch: onInterceptActionDownListener.onActionDown");
                         break;
                     }
                 }
                 actionDown(event);
                 break;
             case MotionEvent.ACTION_MOVE:
-                actionMove(event);
+                actionMove(v, event);
                 break;
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-            case MotionEvent.ACTION_OUTSIDE:
+            case MotionEvent.ACTION_UP://1
+            case MotionEvent.ACTION_CANCEL://3
+            case MotionEvent.ACTION_OUTSIDE://4
+                Log.d(TAG, "onTouch: actionUp,action=" + action);
                 b = actionUp(event);
+                if (onActionFinishListener != null) {
+                    onActionFinishListener.onActionFinish(b);
+                }
+                b = false;
+                break;
+            default:
+                Log.d(TAG, "onTouch: 意料之外的action=" + action);
                 break;
         }
         return b;
@@ -62,6 +82,7 @@ public class MyScrollListener implements View.OnTouchListener {
      * @param event
      */
     public void actionDown(MotionEvent event) {
+        Log.d(TAG, "actionDown: ");
         downX = event.getRawX();
         preX = event.getRawX();
         offsetSumX_finger = 0;
@@ -72,17 +93,19 @@ public class MyScrollListener implements View.OnTouchListener {
     /**
      * ACTION_MOVE 处理
      *
+     * @param v
      * @param event
      */
-    public void actionMove(MotionEvent event) {
+    public void actionMove(View v, MotionEvent event) {
+        Log.d(TAG, "actionMove: ");
         if (!isHaveTriggerDown) {
+            v.setPressed(true);
             actionDown(event);//由于没有触发ACTION_DOWN，本次ACTION_MOVE代替ACTION_DOWN调用actionDown(event)初始化数据
             return;
         }
         currentX = event.getRawX();
         offsetX = preX - currentX;
         offsetSumX_finger += offsetX;
-        //System.out.println("--->maxOffset=" + maxOffset + ";offsetX=" + offsetX + ";offsetSumX_view=" + offsetSumX_view + ";offsetSumX_finger=" + offsetSumX_finger);
         if (offsetX > 0) {//往左拉
             if (offsetSumX_view == maxOffset) {//已经是最大偏移量，不能再往左拉了
 
@@ -173,6 +196,10 @@ public class MyScrollListener implements View.OnTouchListener {
         this.onInterceptActionDownListener = onInterceptActionDownListener;
     }
 
+    public void setOnActionFinishListener(OnActionFinishListener onActionFinishListener) {
+        this.onActionFinishListener = onActionFinishListener;
+    }
+
     /**
      * 隐藏视图状态监听
      */
@@ -185,6 +212,16 @@ public class MyScrollListener implements View.OnTouchListener {
      */
     public static interface OnInterceptActionDownListener {
         boolean onActionDown();
+    }
+
+    /**
+     * 事件结束的回调，可当做是对外提供点击事件接口（因为滑动事件和点击事件冲突，若采用actionUp返回true来拦截，有时会导致view的状态没能恢复，故不采用setOnclickListener的方式，直接通过接口判断是否应该执行点击事件）
+     */
+    public static interface OnActionFinishListener {
+        /**
+         * @param isEventIntercepted 事件是否被拦截
+         */
+        void onActionFinish(boolean isEventIntercepted);
     }
 
 }

@@ -2,7 +2,6 @@ package com.example.naruto.draglistitemapplication;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,12 +16,10 @@ import java.util.List;
  * @Note
  */
 public abstract class DragListAdapter<T, VH extends DragListAdapter.DragListViewHolder> extends RecyclerView.Adapter<VH> {
-    private Context context;
+    protected Context context;
     protected List<T> dataList;
-    private OnItemClickListener onItemClickListener;
-    private OnItemDeleteClickListener onDeleteClickListener;
+    protected RecyclerView recyclerView;
     private int showScrollMenuItemPosition = -1;//哪个Item侧滑菜单已打开
-    private RecyclerView recyclerView;
     private static final String TAG = "DragListAdapter";
     private int itemLayoutRes;
 
@@ -41,7 +38,27 @@ public abstract class DragListAdapter<T, VH extends DragListAdapter.DragListView
         DragListItem dragListItem = new DragListItem(context);//侧滑布局
         dragListItem.setContentView(v);//将item布局放入侧滑布局内
         // 实例化viewHolder
-        return initViewHolder(dragListItem);
+        final VH viewHolder = initViewHolder(dragListItem);
+        //点击监听
+        viewHolder.dragListItem.setClickable(true);
+        viewHolder.dragListItem.setOnActionFinishListener(new MyScrollListener.OnActionFinishListener() {
+            @Override
+            public void onActionFinish(boolean isEventIntercepted) {
+                if (!isEventIntercepted) {
+                    onItemClick(viewHolder);
+                }
+            }
+        });
+
+        //删除监听
+        viewHolder.deleteButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onDeleteClick(viewHolder);
+            }
+        });
+
+        return viewHolder;
     }
 
     @Override
@@ -53,36 +70,19 @@ public abstract class DragListAdapter<T, VH extends DragListAdapter.DragListView
             holder.dragListItem.hideMenu();//隐藏侧滑菜单
         }
 
-        if (onItemClickListener != null) {
-            holder.itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    onItemClickListener.onClick(holder);
-                }
-            });
-        }
-        if (onDeleteClickListener != null) {
-            holder.deleteButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    onDeleteClickListener.onClick(holder);
-                }
-            });
-        }
         holder.dragListItem.setHideStateChangeListener(new MyScrollListener.HideStateChangeListener() {
             @Override
             public void onChange(boolean theHideViewIsShow) {
-                int headerCount = 0;
+                int headerCount = getHeaderCount();
                 showScrollMenuItemPosition = theHideViewIsShow ? holder.getLayoutPosition() - headerCount : -1;
-                Log.d(TAG, "setHideStateChangeListener: showScrollMenuItemPosition=" + showScrollMenuItemPosition);
             }
         });
 
         holder.dragListItem.setOnInterceptActionDownListener(new MyScrollListener.OnInterceptActionDownListener() {
             @Override
             public boolean onActionDown() {
-                Log.d(TAG, "setOnInterceptActionDownListener: showScrollMenuItemPosition=" + showScrollMenuItemPosition);
-                return hideMenu(showScrollMenuItemPosition != holder.getLayoutPosition());
+                int headerCount = getHeaderCount();
+                return hideMenu(showScrollMenuItemPosition != holder.getLayoutPosition() - headerCount);
             }
         });
     }
@@ -91,15 +91,6 @@ public abstract class DragListAdapter<T, VH extends DragListAdapter.DragListView
     @Override
     public int getItemCount() {
         return dataList == null ? 0 : dataList.size();
-    }
-
-
-    public void setOnItemClickListener(OnItemClickListener onItemClickListener) {
-        this.onItemClickListener = onItemClickListener;
-    }
-
-    public void setOnDeleteClickListener(OnItemDeleteClickListener onDeleteClickListener) {
-        this.onDeleteClickListener = onDeleteClickListener;
     }
 
     public int getShowScrollMenuItemPosition() {
@@ -128,8 +119,8 @@ public abstract class DragListAdapter<T, VH extends DragListAdapter.DragListView
     public boolean hideMenu(boolean condition) {
         boolean result = false;
         if (showScrollMenuItemPosition != -1 && condition) {//有Item侧滑菜单已打开
-            DragListViewHolder viewHolder = (DragListViewHolder) recyclerView.findViewHolderForAdapterPosition(showScrollMenuItemPosition);
-            if (viewHolder != null) {//说明那个item不可见
+            DragListViewHolder viewHolder = (DragListViewHolder) recyclerView.findViewHolderForAdapterPosition(showScrollMenuItemPosition + getHeaderCount());
+            if (viewHolder != null) {
                 viewHolder.dragListItem.hideMenu();
                 result = true;
             }
@@ -141,6 +132,12 @@ public abstract class DragListAdapter<T, VH extends DragListAdapter.DragListView
     public abstract void BindData(int position, VH holder);
 
     public abstract VH initViewHolder(DragListItem dragListItem);
+
+    public abstract void onItemClick(VH viewHolder);
+
+    public abstract void onDeleteClick(VH viewHolder);
+
+    public abstract int getHeaderCount();
 
 
     /**

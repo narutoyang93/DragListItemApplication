@@ -13,7 +13,7 @@
     <!--隐藏的菜单布局-->
     <LinearLayout
         android:id="@+id/hide_view"
-        android:layout_width="100dp"
+        android:layout_width="60dp"
         android:layout_height="match_parent"
         android:background="@android:color/holo_red_dark"
         android:orientation="horizontal">

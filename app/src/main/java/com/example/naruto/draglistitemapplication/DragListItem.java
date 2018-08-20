@@ -22,12 +22,13 @@ public class DragListItem extends LinearLayout {
     private LinearLayout mContentView;//将包裹实际的内容
     private LinearLayout mHiddenLayout;
     private Scroller mScroller;
-    private int mLastX, mLastY;
-    private int mDragOutWidth;//完全侧滑出来的距离
+    private int dragOutWidth;//完全侧滑出来的距离
     private double fraction = 0.75;//触发自动侧滑的临界点
+    private boolean isDrag = false;
     private MyScrollListener myScrollListener;//滑动监听
     private boolean scrollable = true;//是否允许滑动
     private int positionInList;//在列表中的位置
+    private static final String TAG = "DragListItem";
 
     public DragListItem(Context context) {
         super(context);
@@ -53,13 +54,19 @@ public class DragListItem extends LinearLayout {
         //merge进来整个listItem，在这里可以自己定义删除按钮的显示的布局，随便按照的喜好修改都行
         mHiddenDragView = View.inflate(mContext, R.layout.hide_drag_item, this);
 
-        mContentView = (LinearLayout) mHiddenDragView.findViewById(R.id.show_content_view);
-        mHiddenLayout = (LinearLayout) mHiddenDragView.findViewById(R.id.hide_view);
+        mContentView = mHiddenDragView.findViewById(R.id.show_content_view);
+        mHiddenLayout = mHiddenDragView.findViewById(R.id.hide_view);
         mScroller = new Scroller(mContext);
 
-        //将隐藏的删除布局的宽度赋值给边界的值，根据自己的需要可以任意的修改
-        mDragOutWidth = dip2px(mContext, 100);
-        myScrollListener = new MyScrollListener(this, mDragOutWidth);
+        mHiddenLayout.post(new Runnable() {
+            @Override
+            public void run() {
+                dragOutWidth = mHiddenLayout.getWidth();
+                myScrollListener.setMaxOffset(dragOutWidth);
+            }
+        });
+
+        myScrollListener = new MyScrollListener(DragListItem.this);
         setOnTouchListener(myScrollListener);
     }
 
@@ -83,6 +90,19 @@ public class DragListItem extends LinearLayout {
         }
     }
 
+    private boolean hsaMove = false;//该条目是否已经监听过手势的滑动，用来作为判断是否进行条目左右滑动的条件之一
+
+    public boolean isHsaMove() {
+        return hsaMove;
+    }
+
+    public void setHsaMove(boolean hsaMove) {
+        this.hsaMove = hsaMove;
+    }
+
+    public void setIsDrag(boolean isDrag) {
+        this.isDrag = isDrag;
+    }
 
     public int getPositionInList() {
         return positionInList;
@@ -94,6 +114,10 @@ public class DragListItem extends LinearLayout {
 
     public void setHideStateChangeListener(MyScrollListener.HideStateChangeListener listener) {
         this.myScrollListener.setHideStateChangeListener(listener);
+    }
+
+    public void setOnActionFinishListener(MyScrollListener.OnActionFinishListener onActionFinishListener) {
+        this.myScrollListener.setOnActionFinishListener(onActionFinishListener);
     }
 
     public void setOnInterceptActionDownListener(final MyScrollListener.OnInterceptActionDownListener onInterceptActionDownListener) {
@@ -117,7 +141,7 @@ public class DragListItem extends LinearLayout {
      */
     public void hideMenu() {
         if (myScrollListener.isTheHideViewIsShow()) {//如果隐藏菜单已被拉出
-            this.scrollBy(-mDragOutWidth, 0);
+            this.scrollBy(-dragOutWidth, 0);
             myScrollListener.setTheHideViewIsShow(false);
         }
     }
@@ -127,7 +151,7 @@ public class DragListItem extends LinearLayout {
      */
     public void showMenu() {
         if (!myScrollListener.isTheHideViewIsShow()) {//如果隐藏菜单处于隐藏状态
-            this.scrollBy(mDragOutWidth, 0);
+            this.scrollBy(dragOutWidth, 0);
             myScrollListener.setTheHideViewIsShow(true);
         }
     }
@@ -137,6 +161,9 @@ public class DragListItem extends LinearLayout {
         invalidate();
     }
 
+    public boolean getDragState() {
+        return isDrag;
+    }
 
     @Override
     public void computeScroll() {

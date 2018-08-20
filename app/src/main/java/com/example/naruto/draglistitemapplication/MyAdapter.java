@@ -19,6 +19,8 @@ import java.util.List;
  * @Note
  */
 public class MyAdapter extends DragListAdapter<String, MyAdapter.MyViewHolder> {
+    private OnItemClickListener onItemClickListener;
+    private OnItemDeleteClickListener onDeleteClickListener;
 
     public MyAdapter(Context context, List<String> dataList, RecyclerView recyclerView, int itemLayoutRes) {
         super(context, dataList, recyclerView, itemLayoutRes);
@@ -33,6 +35,29 @@ public class MyAdapter extends DragListAdapter<String, MyAdapter.MyViewHolder> {
     @Override
     public MyViewHolder initViewHolder(DragListItem dragListItem) {
         return new MyViewHolder(dragListItem);
+    }
+
+    @Override
+    public void onItemClick(MyViewHolder viewHolder) {
+        onItemClickListener.onClick(viewHolder);
+    }
+
+    @Override
+    public void onDeleteClick(MyViewHolder viewHolder) {
+        onDeleteClickListener.onClick(viewHolder);
+    }
+
+    @Override
+    public int getHeaderCount() {
+        return 0;
+    }
+
+    public void setOnItemClickListener(OnItemClickListener onItemClickListener) {
+        this.onItemClickListener = onItemClickListener;
+    }
+
+    public void setOnDeleteClickListener(OnItemDeleteClickListener onDeleteClickListener) {
+        this.onDeleteClickListener = onDeleteClickListener;
     }
 
     /**
